@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+  db:
+    image: mysql:latest
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: main
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpwd
+    ports:
+      - 3306:3306
+    networks:
+      - default
+
+  filler:
+    build: filler
+    image: filler
+    container_name: filler
+    depends_on:
+      - db
+    networks:
+      - default
+    volumes:
+      - ./filler/data.csv:/data/data.csv
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
