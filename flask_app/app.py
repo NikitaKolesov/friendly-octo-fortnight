@@ -3,17 +3,12 @@ from datetime import timedelta
 from os import getenv
 from pathlib import Path
 
-import mysql.connector as connector
+from flask import Flask
+from mysql import connector
 from mysql.connector import DatabaseError, ProgrammingError
 from retrying import retry
 
-
-def iter_lines_csv(fp):
-    while True:
-        line = fp.readline()
-        if not line:
-            return
-        yield line.strip().split(',')
+app = Flask(__name__)
 
 
 def retry_if_database_error(exception):
@@ -30,7 +25,7 @@ def retry_if_database_error(exception):
 )
 def connect_to_db():
     mysql_user = getenv('MYSQL_USER', 'user')
-    mysql_password = getenv('MYSQL_PASSWORD', 'iLoveGachiMuchi')
+    mysql_password = getenv('MYSQL_PASSWORD', 'userpwd')
     mysql_host = getenv('MYSQL_HOST', 'db')
     mysql_port = getenv('MYSQL_PORT', '3306')
     mysql_database = getenv('MYSQL_DATABASE', 'main')
@@ -46,27 +41,26 @@ def connection_context():
     conn.close()
 
 
-def main():
+def select_all():
+    mysql_table = getenv('MYSQL_TABLE', Path(getenv('CSV_PATH', '/data/data.csv')).name)
     with connection_context() as conn:
-        mysql_table = getenv('MYSQL_TABLE', Path(getenv('CSV_PATH', '/data/data.csv')).name)
         cursor = conn.cursor()
-        cursor.execute(
-            f"""\
-        CREATE TABLE IF NOT EXISTS {mysql_table} (
-        id INT NOT NULL AUTO_INCREMENT,
-        data TEXT NOT NULL,
-        val FLOAT NOT NULL,
-        PRIMARY KEY (id) )"""
-        )
-        with open(getenv('CSV_PATH', '/data/data.csv'), 'r') as f:
-            for line in iter_lines_csv(f):
-                insert_st = f"INSERT INTO {mysql_table} (data, val) VALUES ('{line[0]}', {line[1]})"
-                cursor.execute(insert_st)
-        conn.commit()
         cursor.execute(f'SELECT * from {mysql_table};')
         records = cursor.fetchall()
-        print(records)
+        return {r[0]: {'text': r[1], 'number': r[2]} for r in records}
 
 
-if __name__ == '__main__':
-    main()
+@app.route('/')
+def data():
+    text = select_all()
+    return text
+
+
+@app.route('/health')
+def health():
+    return '', 200
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return "Chat is going so fast that noone will notice that I'm gay", 404

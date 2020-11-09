@@ -3,28 +3,52 @@ version: "3"
 services:
   db:
     image: mysql:latest
-    container_name: mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: main
       MYSQL_USER: user
       MYSQL_PASSWORD: userpwd
-    ports:
-      - 3306:3306
     networks:
       - default
 
   filler:
     build: filler
     image: filler
-    container_name: filler
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: main
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpwd
+      MYSQL_TABLE: main
+      CSV_PATH: /data/data.csv
     depends_on:
       - db
     networks:
       - default
     volumes:
       - ./filler/data.csv:/data/data.csv
+
+  flask_app:
+    build: flask_app
+    image: flask_app
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: main
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpwd
+      MYSQL_TABLE: main
+      CSV_PATH: /data/data.csv
+    ports:
+      - 5000:5000
+    depends_on:
+      - db
+    networks:
+      - default
 
   adminer:
     image: adminer
